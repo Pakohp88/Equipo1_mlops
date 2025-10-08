@@ -1,0 +1,5 @@
+[core]
+    remote = azdatos
+['remote "azdatos"']
+    url = azure://dvcdata
+    account_name = mlopsdvc
