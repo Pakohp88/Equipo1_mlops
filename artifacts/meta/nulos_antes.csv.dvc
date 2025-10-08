@@ -1,0 +1,5 @@
+outs:
+- md5: 15571a37fba0a5bd3c4abcee45fd1754
+  size: 1361
+  hash: md5
+  path: nulos_antes.csv
