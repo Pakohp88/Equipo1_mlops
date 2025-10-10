@@ -1,0 +1,5 @@
+outs:
+- md5: 1c32cb543d07ec3394f9878d48353e35
+  size: 6175
+  hash: md5
+  path: outliers_iqr.json

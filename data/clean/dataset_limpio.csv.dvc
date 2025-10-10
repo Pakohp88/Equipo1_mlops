@@ -1,0 +1,5 @@
+outs:
+- md5: 47765d987f5223827ac0dbe15b5669d1
+  size: 126647
+  hash: md5
+  path: dataset_limpio.csv
