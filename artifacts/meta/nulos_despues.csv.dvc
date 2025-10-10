@@ -1,0 +1,5 @@
+outs:
+- md5: e4bcae7ed8eb656e7665d521b733d3da
+  size: 1292
+  hash: md5
+  path: nulos_despues.csv
