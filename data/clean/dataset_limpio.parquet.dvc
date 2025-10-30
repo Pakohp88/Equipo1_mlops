@@ -1,0 +1,5 @@
+outs:
+- md5: 2ea495bb062063f3bd6a6eb17d30e57a
+  size: 126306
+  hash: md5
+  path: dataset_limpio.parquet
