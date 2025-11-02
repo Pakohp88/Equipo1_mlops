@@ -1,5 +1,0 @@
-[core]
-    remote = azdatos
-['remote "azdatos"']
-    url = azure://mlopsdvc
-    account_name = mlopdvc

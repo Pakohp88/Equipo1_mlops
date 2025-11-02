@@ -1,0 +1,7 @@
+repo:
+    url: https://github.com/Pakohp88/Equipo1_mlops.git
+paths: 
+    raw_data: data/raw/turkish_music_emotion_modified.csv
+    original_data: data/raw/turkis_music_emotion_original.csv
+    clean_data: data/processed/clean/clean_dataset.csv
+    processed_data: data/processed

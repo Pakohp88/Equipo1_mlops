@@ -142,3 +142,15 @@ help:
 		printf "\n"; \
 	}' \
 	| more $(shell test $(shell uname) = Darwin && echo '--no-init --raw-control-chars')
+
+
+
+
+OS := $(shell uname)
+
+init_git:
+ifeq ($(OS),Linux)
+    bash scripts/setup_git.sh
+else
+    powershell -ExecutionPolicy Bypass -File scripts/setup_git.ps1
+endif
