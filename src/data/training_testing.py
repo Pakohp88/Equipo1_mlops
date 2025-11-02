@@ -1,3 +1,18 @@
+import numpy as np
+import pandas as pd
+import logging
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+
+
+logger = logging.getLogger(__name__)
+
 def separar_x_y(df):
   col_objetivo = "class"  # ajusta si corresponde
   if col_objetivo in df.columns:
@@ -8,17 +23,17 @@ def separar_x_y(df):
       # Guardar para el punto de modelado
       # (DIR_PROC / "X.csv").write_text(X.to_csv(index=False), encoding="utf-8")
       # (DIR_PROC / "y.csv").write_text(y.to_csv(index=False, header=True), encoding="utf-8")
-      print("✔ Archivos para modelado guardados en data/processed/: X.csv y y.csv")
+      logger.debug("✔ Archivos para modelado guardados en data/processed/: X.csv y y.csv")
   else:
-      print("ℹ️ No se encontró columna objetivo 'class'; omito exportación X/y.")
+      logger.debug("ℹ️ No se encontró columna objetivo 'class'; omito exportación X/y.")
 
 def obtener_X_y():
   try:
       X = pd.read_csv("data/processed/X.csv")
       y = pd.read_csv("data/processed/y.csv").squeeze()
   except FileNotFoundError:
-      print("Error: No se encontraron los archivos X.csv y y.csv en 'data/processed/'")
-      print("Asegúrate de haber ejecutado la fase de limpieza de datos primero.")
+      logger.debug("Error: No se encontraron los archivos X.csv y y.csv en 'data/processed/'")
+      logger.debug("Asegúrate de haber ejecutado la fase de limpieza de datos primero.")
       X, y = (None, None)
 
 def particion_dataSet(X, y):
@@ -26,12 +41,12 @@ def particion_dataSet(X, y):
   X_temp, X_validation, y_temp, y_validation = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
   X_train, X_test, y_train, y_test = train_test_split(X_temp, y_temp, test_size=0.25, random_state=42, stratify=y_temp)
 
-  print("X_train shape:", X_train.shape)
-  print("y_train shape:", y_train.shape)
-  print("X_test shape:", X_test.shape)
-  print("y_test shape:", y_test.shape)
-  print("X_validation shape:", X_validation.shape)
-  print("y_validation shape:", y_validation.shape)
+  logger.debug("X_train shape:", X_train.shape)
+  logger.debug("y_train shape:", y_train.shape)
+  logger.debug("X_test shape:", X_test.shape)
+  logger.debug("y_test shape:", y_test.shape)
+  logger.debug("X_validation shape:", X_validation.shape)
+  logger.debug("y_validation shape:", y_validation.shape)
 
   return X_train, X_test, y_train, y_test, X_validation, y_validation
 
@@ -52,7 +67,7 @@ def train_model(X_train, y_train):
   knn_model.fit(X_train, y_train)
   gradient_boosting.fit(X_train, y_train)
 
-  print("Models trained successfully.")
+  logger.debug("Models trained successfully.")
 
   return log_reg, dec_tree, rand_forest, svm_model, knn_model, gradient_boosting
 
@@ -114,12 +129,13 @@ def store_estimators(estimator):
 
 
 def evaluar_modelos():
+  logger.info("Inicia evaluación del modelo")
   X, y = obtener_X_y()
   X_train, X_test, y_train, y_test, X_validation, y_validation = particion_dataSet(X, y)
   log_reg, dec_tree, rand_forest, svm_model, knn_model, gradient_boosting = train_model(X_train, y_train)
   param_grid_log_reg, param_grid_dec_tree, param_grid_rand_forest, param_grid_svm, param_grid_knn, param_grid_gradient_boosting, param_table = ajuste_hiperparametros()
 
-  print(param_table)
+  logger.debug(param_table)
 
   grid_search_log_reg = aplicar_gridSearch(log_reg, param_grid_log_reg)
   grid_search_dec_tree = aplicar_gridSearch(dec_tree, param_grid_dec_tree)
@@ -175,4 +191,6 @@ def evaluar_modelos():
   evaluation_results_df = pd.DataFrame(results_data)
 
   # Display the DataFrame
-  print(evaluation_results_df)
+  logger.debug(evaluation_results_df)
+
+  logger.info("Finaliza evaluación del modelo")
