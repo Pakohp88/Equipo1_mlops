@@ -1,0 +1,241 @@
+import pandas as pd
+import numpy as np
+import re
+import seaborn as sns
+import matplotlib.pyplot as plt
+from typing import List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+def imprime_shape(df):
+  logger.debug(df.shape)
+
+def imprime_info(df):
+  logger.debug(df.info())
+
+# Imprime los tipos de datos en el df
+def imprime_tipos(df):
+  logger.debug(df.dtypes.value_counts())
+
+# Imprime columnas tipo object
+def imprime_col_object(df):
+  logger.debug(df.select_dtypes(include='object').columns.tolist())
+
+# Imprime el size del df
+def size_df(df):
+  return df.size
+
+def variables_num_cat(df):
+  cols_id = detectar_columnas_id(df)
+  numeric_cols = df.select_dtypes(include='number').columns
+  cols_cat = [c for c in df.select_dtypes(exclude=np.number).columns if c not in cols_id]
+  return numeric_cols, cols_cat
+
+# Imprime el número de valores nulls general
+def cantidad_nulls(df):
+  return int(df.isna().sum().sum())
+
+# Obtiene los valores null por fila y columna
+def filas_columnas_null(df):
+  filas = int(df.isna().any(axis=1).sum())
+  columnas = df.isna().sum()
+  columnas = columnas[columnas > 0]
+  return filas, columnas
+
+# Imprime los valores únicos de la columna Class
+def unique_class(df):
+  logger.debug("Valores únicos en Class:", df['Class'].unique())
+
+def resumen_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    """Resumen por columna: dtype, nulos, %, únicos, ejemplo."""
+    total = len(df)
+    resumen = []
+    for c in df.columns:
+        nulos = int(df[c].isna().sum())
+        unicos = int(df[c].nunique(dropna=True))
+        ejemplo = df[c].dropna().iloc[0] if df[c].dropna().shape[0] else None
+        resumen.append({
+            "columna": c,
+            "tipo": str(df[c].dtype),
+            "nulos": nulos,
+            "%_nulos": round(nulos/total*100, 2),
+            "unicos": unicos,
+            "ejemplo": ejemplo
+        })
+    return pd.DataFrame(resumen).sort_values("%_nulos", ascending=False)
+
+def detectar_columnas_id(df: pd.DataFrame) -> List[str]:
+    """Heurística de columnas ID (para no analizarlas como variables)."""
+    ids = []
+    for c in df.columns:
+        if re.search(r'(id|uuid|guid|folio|pk|code)$', c, flags=re.I):
+            ids.append(c)
+        if pd.api.types.is_integer_dtype(df[c]) and df[c].nunique(dropna=True) > 0.95*len(df):
+            ids.append(c)
+    return sorted(list(set(ids)))
+
+def detectar_posible_objetivo(df: pd.DataFrame) -> Optional[str]:
+    """Intenta adivinar columna objetivo por nombres comunes."""
+    posibles = ["target", "label", "clase", "class", "emotion", "objetivo", "y"]
+    candidatos = [c for c in df.columns if c.lower() in posibles]
+    return candidatos[0] if candidatos else None
+
+def imprime_previo_eda(df):
+  logger.debug("\n" + "/"*50)
+  logger.debug("PREVIO (EDA)")
+  logger.debug("/"*50)
+
+  # Tipo de datos
+  logger.debug("\nImprime los tipos de datos: ")
+  imprime_tipos(df)
+  # Nulls
+  logger.debug("Total de nulos después del relleno:", cantidad_nulls(df))
+  filas, columnas = filas_columnas_null(df)
+  logger.debug("Filas con ≥1 nulo:", filas, "columnas:", columnas)
+  # Columnas object
+  logger.debug("\nColumnas tipo object: ")
+  imprime_col_object(df)
+  # Unique Class
+  logger.debug("\n")
+  unique_class(df)
+  #shape
+  logger.debug("\nShape: ")
+  imprime_shape(df)
+
+def imprime_posterior_eda(df):
+  cols_id = detectar_columnas_id(df)
+  logger.debug("\nValidación de outliers después de tratamiento de datos")
+  numeric_cols, cols_cat = variables_num_cat(df)
+  boxplots_outliers_previos(numeric_cols, df)
+  logger.debug("\nValidación de histogramas después de tratamiento de datos")
+  distribuciones_numericas(df, numeric_cols)
+  logger.debug("\nValidación de matriz de correlación después de tratamiento de datos")
+  matriz_correlacion(df, excluir=cols_id)
+
+plt.rcParams["figure.figsize"] = (6,4)   # gráficos compactos
+plt.rcParams["axes.grid"] = True
+
+def estadisticas_descriptivas(df: pd.DataFrame, excluir: List[str]=[]) -> pd.DataFrame:
+    """Describe numéricas (media, std, p25/p50/p75…) y cardinalidad de categóricas."""
+    num_cols = [c for c in df.select_dtypes(include=np.number).columns if c not in excluir]
+    cat_cols = [c for c in df.select_dtypes(exclude=np.number).columns if c not in excluir]
+    desc_num = df[num_cols].describe().T if num_cols else pd.DataFrame()
+    if not desc_num.empty:
+        desc_num["nulos"] = df[num_cols].isna().sum()
+    desc_cat = pd.DataFrame({
+        "cardinalidad": df[cat_cols].nunique(dropna=True),
+        "nulos": df[cat_cols].isna().sum()
+    }) if cat_cols else pd.DataFrame()
+    return desc_num, desc_cat
+
+def distribuciones_numericas(df, numeric_columns):
+    num_cols = len(numeric_columns)
+    num_rows = (num_cols + 2) // 3
+
+    fig, axes = plt.subplots(num_rows, 3, figsize=(18, 5 * num_rows))
+    axes = axes.flatten()
+
+    for i, col in enumerate(numeric_columns):
+        sns.histplot(df[col], kde=True, ax=axes[i])
+        axes[i].set_title(f'Distribution: {col}')
+        axes[i].set_xlabel(col)
+        axes[i].set_ylabel('Frequency')
+
+
+    for j in range(i + 1, len(axes)):
+        axes[j].axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+def distribuciones_categoricas(df: pd.DataFrame, columnas: List[str], top:int=10, max_columnas:int=12):
+    """Barras de frecuencia para categóricas (top-k por columna)."""
+    cols = columnas[:max_columnas]
+    n = len(cols)
+    if n == 0:
+        logger.debug("No hay columnas categóricas para graficar.")
+        return
+    filas = int(np.ceil(n/3))
+    fig, axes = plt.subplots(filas, 3, figsize=(15, 4*filas))
+
+    # Aseguramos que 'axes' sea siempre un array plano para poder iterarlo
+    axes = np.array(axes).flatten()
+
+    for i, c in enumerate(cols):
+        vc = df[c].value_counts(dropna=False).head(top)
+        # Usamos try-except por si la columna tiene valores nulos como índice
+        try:
+            axes[i].bar(vc.index.astype(str), vc.values)
+        except TypeError:
+            # Si el índice contiene NaN, lo convertimos a string "NaN"
+            axes[i].bar([str(idx) for idx in vc.index], vc.values)
+
+        axes[i].set_title(f"Frecuencias (top {top}): {c}")
+        axes[i].tick_params(axis='x', rotation=45)
+
+    for j in range(i+1, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.tight_layout()
+    plt.show()
+
+def matriz_correlacion(df: pd.DataFrame, excluir: List[str]=[]):
+    """Mapa de calor de correlaciones para numéricas."""
+    num_cols = [c for c in df.select_dtypes(include=np.number).columns if c not in excluir]
+    if len(num_cols) < 2:
+        logger.debug("Se necesitan ≥2 columnas numéricas para correlación.")
+        return
+    corr = df[num_cols].corr(numeric_only=True)
+    plt.figure(figsize=(14,12))
+    sns.heatmap(corr, cmap="coolwarm", center=0, linewidths=.5)
+    plt.title("Matriz de correlación (numéricas)")
+    plt.tight_layout()
+    plt.show()
+
+def boxplots_outliers_previos(numeric_cols, df_target):
+  num_cols = len(numeric_cols)
+  num_rows = (num_cols + 2) // 3
+
+  fig, axes = plt.subplots(num_rows, 3, figsize=(18, 5 * num_rows))
+  axes = axes.flatten()
+
+  for i, col in enumerate(numeric_cols):
+      sns.boxplot(x=df_target[col], ax=axes[i])
+      axes[i].set_title(f'Outliers in column: {col}')
+      axes[i].set_xlabel(col)
+
+  for j in range(i + 1, len(axes)):
+      axes[j].axis('off')
+
+  plt.tight_layout()
+  plt.show()
+
+def analisis_objetivo(df: pd.DataFrame, nombre_objetivo: Optional[str]) -> None:
+    """Resumen del objetivo: balance de clases o stats numéricas."""
+    if not nombre_objetivo or nombre_objetivo not in df.columns:
+        logger.debug("No se identificó columna objetivo.")
+        return
+    y = df[nombre_objetivo]
+    logger.debug(f"Columna objetivo detectada: {nombre_objetivo}")
+    if y.dtype.kind in "ifu":   # numérica
+        logger.debug(y.describe())
+        plt.hist(y.dropna(), bins=20)
+        plt.title(f"Distribución del objetivo: {nombre_objetivo}")
+        plt.show()
+    else:                        # categórica
+        vc = y.value_counts(dropna=False)
+        logger.debug("\nBalance de clases:")
+        logger.debug(vc.to_frame("conteo").assign(porcentaje=lambda t: (t["conteo"]/len(y)*100).round(2)))
+        plt.bar(vc.index.astype(str), vc.values)
+        plt.title(f"Balance de clases: {nombre_objetivo}")
+        plt.xticks(rotation=45)
+        plt.show()
+
+def grafica_analisis_componentes_PCA(explained_variance):
+  plt.plot(np.cumsum(explained_variance))
+  plt.xlabel('Components')
+  plt.ylabel('Accumulated variance')
+  plt.title('Choose number of PCA components')
+  plt.grid(True)
+  plt.show()
