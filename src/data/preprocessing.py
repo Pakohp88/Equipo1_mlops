@@ -1,12 +1,20 @@
+import numpy as np
+import pandas as pd
+import re
+import logging
+import visualization
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import PowerTransformer
+
+logger = logging.getLogger(__name__)
+
 class PreprocesamientoDF:
   def __init__(self, df):
     self.df = df
 
-    print("\n")
-    print("/"*50)
-    print("PRE-PROCESAMIENTO DE DATOS")
-    print("/"*50)
-    print("\n")
+    logger.debug("\n" + "/"*50)
+    logger.debug("PRE-PROCESAMIENTO DE DATOS")
+    logger.debug("/"*50 + "\n")
 
   def eliminar_columnas(self, columnas):
     self.df.drop(columns=columnas, inplace=True)
@@ -89,32 +97,34 @@ class PreprocesamientoDF:
           self.df[col] = np.clip(self.df[col], lower, upper)
 
 def preprocesamiento_datos(df):
+  logger.info("Inicial el preprocesamiento de datos")
+
   df_limpiando = PreprocesamientoDF(df)
 
   # 1. Eliminar columna extra: mixex_type_col
   df_limpiando.eliminar_columnas(['mixed_type_col'])
 
   # 2. TRATAMIENTO DE VALORES INCONSISTENTES (OBJECT - NULL)
-  print("\n")
+  logger.debug("\n")
   df_limpiando.convertir_tipo()
-  print("Tipos de datos después de aplicar la conversión")
-  print(df.dtypes.value_counts())
+  logger.debug("Tipos de datos después de aplicar la conversión")
+  logger.debug(df.dtypes.value_counts())
 
   # 3. TRATAMIENTO DE VALORES NULL
-  print("\n")
+  logger.debug("\n")
   df_limpiando.tratamiento_nulls()
 
   # 4. TRATAMIENTO CLASS
-  print("\n")
+  logger.debug("\n")
   df_limpiando.limpieza_class()
 
   # 5. Visualización de outliers
-  print("\n")
+  logger.debug("\n")
   outlier_summary = df_limpiando.analisis_outliers()
   outlier_df = pd.DataFrame(outlier_summary, columns=["columna", "n_outliers", "porcentaje"])
   outlier_df = outlier_df.sort_values("porcentaje", ascending=False)
-  print("Columnas con más OUTLIERS:")
-  print(outlier_df)
+  logger.debug("Columnas con más OUTLIERS:")
+  logger.debug(outlier_df)
 
   # 5.1 Tratamiento de outliers
   df_limpiando.winsorize_iqr()
@@ -123,16 +133,18 @@ def preprocesamiento_datos(df):
   df_limpiando.normalizar_nombres_columnas()
   df_limpiando.limpiar_textos()
 
+  logger.info("Finaliza el preprocesamiento de datos")
+
 def eliminar_filas_invalidas(df):
   col_objetivo = "class"
   filas_antes = len(df)
   if col_objetivo in df.columns:
       df = df[~df[col_objetivo].isna()].copy()
-      print(f"✔ Filas sin objetivo eliminadas: {filas_antes - len(df)}")
+      logger.debug(f"✔ Filas sin objetivo eliminadas: {filas_antes - len(df)}")
 
   dup = int(df.duplicated().sum())
   df = df.drop_duplicates().copy()
-  print("✔ Filas duplicadas eliminadas:", dup)
+  logger.debug("✔ Filas duplicadas eliminadas:", dup)
 
 def reporte_nulos(df):
   tabla_nulos = (
@@ -164,15 +176,15 @@ def imputacion_nulls(df):
   # (DIR_META / "imputacion_medianas.json").write_text(medianas.to_json(), encoding="utf-8")
   # (DIR_META / "imputacion_modas.json").write_text(json.dumps(modas, ensure_ascii=False, indent=2), encoding="utf-8")
 
-  print("Imputación realizada (medianas y modas)")
+  logger.debug("Imputación realizada (medianas y modas)")
 
 def normalizacion(df):
-  numeric_cols, cols_cat = variables_num_cat(df)
+  numeric_cols, cols_cat = visualization.variables_num_cat(df)
   scaler = PowerTransformer(method='yeo-johnson')
   df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
 
 def analisis_componentes_PCA(df):
-  numeric_cols, cols_cat = variables_num_cat(df)
+  numeric_cols, cols_cat = visualization.variables_num_cat(df)
   pca = PCA()
   df_numeric = df[numeric_cols]
   pca.fit(df_numeric)
@@ -180,42 +192,42 @@ def analisis_componentes_PCA(df):
   return explained_variance
 
 def limpieza_preparacion(df):
-  print("\n")
-  print("/"*50)
-  print("LIMPIEZA Y PREPARACIÓN")
-  print("/"*50)
-  print("\n")
+  logger.info("Inicial limpieza y preparación de datos")
+
+  logger.debug("\n" + "/"*50)
+  logger.debug("LIMPIEZA Y PREPARACIÓN")
+  logger.debug("/"*50 + "\n")
 
   # 1.
-  print("Eliminar filas inválidas del objetivo y duplicados")
+  logger.debug("Eliminar filas inválidas del objetivo y duplicados")
   eliminar_filas_invalidas(df)
   # 2.
-  print("\nReporte de nulos")
+  logger.debug("\nReporte de nulos")
   tabla_nulos_antes = reporte_nulos(df)
   # PENDIENTE
   #tabla_nulos_antes.to_csv(DIR_META / "nulos_antes.csv", encoding="utf-8")
-  print("Top nulos (antes):")
-  display(tabla_nulos_antes.head(15))
+  logger.debug("Top nulos (antes):")
+  tabla_nulos_antes.head(15)
   # 3.
-  print("\nImputación (mediana para numpericas, moda para categóricas)")
+  logger.debug("\nImputación (mediana para numpericas, moda para categóricas)")
   imputacion_nulls(df)
   # 4.
-  print("\nNormalización de Datos")
+  logger.debug("\nNormalización de Datos")
   normalizacion(df)
   df.head()
   # 5.
-  print("\nAnálisis de Componentes")
+  logger.debug("\nAnálisis de Componentes")
   explained_variance = analisis_componentes_PCA(df)
   # 6.
-  print("\n")
-  grafica_analisis_componentes_PCA(explained_variance)
+  logger.debug("\n")
+  visualization.grafica_analisis_componentes_PCA(explained_variance)
   # 7.
-  print("\nReporte de nulos - posterior")
+  logger.debug("\nReporte de nulos - posterior")
   tabla_nulos_despues = reporte_nulos(df)
   # PENDIENTE
   #tabla_nulos_despues.to_csv(DIR_META / "nulos_despues.csv", encoding="utf-8")
-  print("Nulos (después) - top:")
-  display(tabla_nulos_despues.head(10))
+  logger.debug("Nulos (después) - top:")
+  tabla_nulos_despues.head(10)
   # 8. PENDIENTE
   # Guardar CSV/parquet limpios
   # RUTA_LIMPIO_CSV = DIR_CLEAN / "dataset_limpio.csv"
@@ -226,3 +238,4 @@ def limpieza_preparacion(df):
   # print("✅ Dataset limpio guardado en:")
   # print("  -", RUTA_LIMPIO_CSV)
   # print("  -", RUTA_LIMPIO_PAR)
+  logger.info("Finaliza limpieza y preparación de datos")

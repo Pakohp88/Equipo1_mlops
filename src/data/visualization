@@ -1,16 +1,26 @@
+import pandas as pd
+import numpy as np
+import re
+import seaborn as sns
+import matplotlib.pyplot as plt
+from typing import List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
 def imprime_shape(df):
-  print(df.shape)
+  logger.debug(df.shape)
 
 def imprime_info(df):
-  print(df.info())
+  logger.debug(df.info())
 
 # Imprime los tipos de datos en el df
 def imprime_tipos(df):
-  print(df.dtypes.value_counts())
+  logger.debug(df.dtypes.value_counts())
 
 # Imprime columnas tipo object
 def imprime_col_object(df):
-  print(df.select_dtypes(include='object').columns.tolist())
+  logger.debug(df.select_dtypes(include='object').columns.tolist())
 
 # Imprime el size del df
 def size_df(df):
@@ -35,7 +45,7 @@ def filas_columnas_null(df):
 
 # Imprime los valores únicos de la columna Class
 def unique_class(df):
-  print("Valores únicos en Class:", df['Class'].unique())
+  logger.debug("Valores únicos en Class:", df['Class'].unique())
 
 def resumen_dataset(df: pd.DataFrame) -> pd.DataFrame:
     """Resumen por columna: dtype, nulos, %, únicos, ejemplo."""
@@ -72,37 +82,35 @@ def detectar_posible_objetivo(df: pd.DataFrame) -> Optional[str]:
     return candidatos[0] if candidatos else None
 
 def imprime_previo_eda(df):
-  print("\n")
-  print("/"*50)
-  print("PREVIO (EDA)")
-  print("/"*50)
+  logger.debug("\n" + "/"*50)
+  logger.debug("PREVIO (EDA)")
+  logger.debug("/"*50)
+
   # Tipo de datos
-  print("\n")
-  print("Imprime los tipos de datos: ")
+  logger.debug("\nImprime los tipos de datos: ")
   imprime_tipos(df)
   # Nulls
-  print("Total de nulos después del relleno:", cantidad_nulls(df))
+  logger.debug("Total de nulos después del relleno:", cantidad_nulls(df))
   filas, columnas = filas_columnas_null(df)
-  print("Filas con ≥1 nulo:", filas, "columnas:", columnas)
+  logger.debug("Filas con ≥1 nulo:", filas, "columnas:", columnas)
   # Columnas object
-  print("\n")
-  print("Columnas tipo object: ")
+  logger.debug("\nColumnas tipo object: ")
   imprime_col_object(df)
   # Unique Class
-  print("\n")
+  logger.debug("\n")
   unique_class(df)
   #shape
-  print("\n")
-  print("Shape: ")
+  logger.debug("\nShape: ")
   imprime_shape(df)
 
 def imprime_posterior_eda(df):
-  print("\nValidación de outliers después de tratamiento de datos")
+  cols_id = detectar_columnas_id(df)
+  logger.debug("\nValidación de outliers después de tratamiento de datos")
   numeric_cols, cols_cat = variables_num_cat(df)
   boxplots_outliers_previos(numeric_cols, df)
-  print("\nValidación de histogramas después de tratamiento de datos")
+  logger.debug("\nValidación de histogramas después de tratamiento de datos")
   distribuciones_numericas(df, numeric_cols)
-  print("\nValidación de matriz de correlación después de tratamiento de datos")
+  logger.debug("\nValidación de matriz de correlación después de tratamiento de datos")
   matriz_correlacion(df, excluir=cols_id)
 
 plt.rcParams["figure.figsize"] = (6,4)   # gráficos compactos
@@ -146,7 +154,7 @@ def distribuciones_categoricas(df: pd.DataFrame, columnas: List[str], top:int=10
     cols = columnas[:max_columnas]
     n = len(cols)
     if n == 0:
-        print("No hay columnas categóricas para graficar.")
+        logger.debug("No hay columnas categóricas para graficar.")
         return
     filas = int(np.ceil(n/3))
     fig, axes = plt.subplots(filas, 3, figsize=(15, 4*filas))
@@ -176,7 +184,7 @@ def matriz_correlacion(df: pd.DataFrame, excluir: List[str]=[]):
     """Mapa de calor de correlaciones para numéricas."""
     num_cols = [c for c in df.select_dtypes(include=np.number).columns if c not in excluir]
     if len(num_cols) < 2:
-        print("Se necesitan ≥2 columnas numéricas para correlación.")
+        logger.debug("Se necesitan ≥2 columnas numéricas para correlación.")
         return
     corr = df[num_cols].corr(numeric_only=True)
     plt.figure(figsize=(14,12))
@@ -206,19 +214,19 @@ def boxplots_outliers_previos(numeric_cols, df_target):
 def analisis_objetivo(df: pd.DataFrame, nombre_objetivo: Optional[str]) -> None:
     """Resumen del objetivo: balance de clases o stats numéricas."""
     if not nombre_objetivo or nombre_objetivo not in df.columns:
-        print("No se identificó columna objetivo.")
+        logger.debug("No se identificó columna objetivo.")
         return
     y = df[nombre_objetivo]
-    print(f"Columna objetivo detectada: {nombre_objetivo}")
+    logger.debug(f"Columna objetivo detectada: {nombre_objetivo}")
     if y.dtype.kind in "ifu":   # numérica
-        display(y.describe())
+        logger.debug(y.describe())
         plt.hist(y.dropna(), bins=20)
         plt.title(f"Distribución del objetivo: {nombre_objetivo}")
         plt.show()
     else:                        # categórica
         vc = y.value_counts(dropna=False)
-        print("\nBalance de clases:")
-        display(vc.to_frame("conteo").assign(porcentaje=lambda t: (t["conteo"]/len(y)*100).round(2)))
+        logger.debug("\nBalance de clases:")
+        logger.debug(vc.to_frame("conteo").assign(porcentaje=lambda t: (t["conteo"]/len(y)*100).round(2)))
         plt.bar(vc.index.astype(str), vc.values)
         plt.title(f"Balance de clases: {nombre_objetivo}")
         plt.xticks(rotation=45)
