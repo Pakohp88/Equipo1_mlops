@@ -1,5 +1,5 @@
-$accessKey = ""
-$secretKey = ""
+$accessKey = "AKIATAVAA573RVVOXPNO"
+$secretKey = "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"
 $bucketName = "itesm-mna/202502-equipo1/"
 $region = "us-east-2" 
 
