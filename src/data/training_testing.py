@@ -10,187 +10,147 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 
-
 logger = logging.getLogger(__name__)
 
+
+# ============================================================
+# 1. Separación X y y
+# ============================================================
 def separar_x_y(df):
-  col_objetivo = "class"  # ajusta si corresponde
-  if col_objetivo in df.columns:
-      y = df[col_objetivo]
-      X = df.drop(columns=[col_objetivo])
+    col_objetivo = "class"
+    if col_objetivo in df.columns:
+        y = df[col_objetivo]
+        X = df.drop(columns=[col_objetivo])
+        logger.info("Columnas separadas correctamente.")
+        return X, y
+    else:
+        logger.warning("⚠ No existe la columna 'class' en el dataframe.")
+        return None, None
 
-      # PENDIENTE
-      # Guardar para el punto de modelado
-      # (DIR_PROC / "X.csv").write_text(X.to_csv(index=False), encoding="utf-8")
-      # (DIR_PROC / "y.csv").write_text(y.to_csv(index=False, header=True), encoding="utf-8")
-      logger.debug("✔ Archivos para modelado guardados en data/processed/: X.csv y y.csv")
-  else:
-      logger.debug("ℹ️ No se encontró columna objetivo 'class'; omito exportación X/y.")
 
+# ============================================================
+# 2. Cargar X y y procesados
+# ============================================================
 def obtener_X_y():
-  try:
-      X = pd.read_csv("data/processed/X.csv")
-      y = pd.read_csv("data/processed/y.csv").squeeze()
-  except FileNotFoundError:
-      logger.debug("Error: No se encontraron los archivos X.csv y y.csv en 'data/processed/'")
-      logger.debug("Asegúrate de haber ejecutado la fase de limpieza de datos primero.")
-      X, y = (None, None)
+    try:
+        X = pd.read_csv("data/processed/X.csv")
+        y = pd.read_csv("data/processed/y.csv").squeeze()
+        return X, y
+    except FileNotFoundError:
+        logger.error("No se encontraron los archivos X.csv o y.csv.")
+        return None, None
 
+
+# ============================================================
+# 3. Partición del dataset
+# ============================================================
 def particion_dataSet(X, y):
-  # Split X and y into train, test, and validation sets (60% train, 20% test, 20% validation)
-  X_temp, X_validation, y_temp, y_validation = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-  X_train, X_test, y_train, y_test = train_test_split(X_temp, y_temp, test_size=0.25, random_state=42, stratify=y_temp)
+    X_temp, X_validation, y_temp, y_validation = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
 
-  logger.debug("X_train shape:", X_train.shape)
-  logger.debug("y_train shape:", y_train.shape)
-  logger.debug("X_test shape:", X_test.shape)
-  logger.debug("y_test shape:", y_test.shape)
-  logger.debug("X_validation shape:", X_validation.shape)
-  logger.debug("y_validation shape:", y_validation.shape)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.25, random_state=42, stratify=y_temp
+    )
 
-  return X_train, X_test, y_train, y_test, X_validation, y_validation
+    return X_train, X_test, y_train, y_test, X_validation, y_validation
 
+
+# ============================================================
+# 4. Entrenamiento de modelos
+# ============================================================
 def train_model(X_train, y_train):
-  # Instantiate each model with default parameters
-  log_reg = LogisticRegression()
-  dec_tree = DecisionTreeClassifier()
-  rand_forest = RandomForestClassifier()
-  svm_model = SVC()
-  knn_model = KNeighborsClassifier()
-  gradient_boosting = GradientBoostingClassifier()
+    log_reg = LogisticRegression(max_iter=500)
+    dec_tree = DecisionTreeClassifier()
+    rand_forest = RandomForestClassifier()
+    svm_model = SVC()
+    knn_model = KNeighborsClassifier()
+    gradient_boosting = GradientBoostingClassifier()
 
-  # Train each model
-  log_reg.fit(X_train, y_train)
-  dec_tree.fit(X_train, y_train)
-  rand_forest.fit(X_train, y_train)
-  svm_model.fit(X_train, y_train)
-  knn_model.fit(X_train, y_train)
-  gradient_boosting.fit(X_train, y_train)
+    log_reg.fit(X_train, y_train)
+    dec_tree.fit(X_train, y_train)
+    rand_forest.fit(X_train, y_train)
+    svm_model.fit(X_train, y_train)
+    knn_model.fit(X_train, y_train)
+    gradient_boosting.fit(X_train, y_train)
 
-  logger.debug("Models trained successfully.")
+    return log_reg, dec_tree, rand_forest, svm_model, knn_model, gradient_boosting
 
-  return log_reg, dec_tree, rand_forest, svm_model, knn_model, gradient_boosting
 
+# ============================================================
+# 5. Hiperparámetros
+# ============================================================
 def ajuste_hiperparametros():
-  param_grid_log_reg = {
-      'C': [0.1, 1, 10, 100],
-      'solver': ['liblinear', 'lbfgs']
-  }
+    param_grid_log_reg = {"C": [0.1, 1], "solver": ["liblinear"]}
+    param_grid_dec_tree = {"max_depth": [None, 10]}
+    param_grid_rand_forest = {"n_estimators": [50, 100]}
+    param_grid_svm = {"C": [0.1, 1], "kernel": ["linear"]}
+    param_grid_knn = {"n_neighbors": [3, 5]}
+    param_grid_gradient_boosting = {"n_estimators": [50, 100]}
 
-  param_grid_dec_tree = {
-      'max_depth': [None, 10, 20, 30],
-      'min_samples_split': [2, 5, 10],
-      'min_samples_leaf': [1, 2, 4]
-  }
+    resumen = pd.DataFrame([
+        {"Modelo": "Logistic Regression", "Hiperparámetros": str(param_grid_log_reg)},
+        {"Modelo": "Decision Tree", "Hiperparámetros": str(param_grid_dec_tree)},
+        {"Modelo": "Random Forest", "Hiperparámetros": str(param_grid_rand_forest)},
+        {"Modelo": "SVM", "Hiperparámetros": str(param_grid_svm)},
+        {"Modelo": "KNN", "Hiperparámetros": str(param_grid_knn)},
+        {"Modelo": "Gradient Boosting", "Hiperparámetros": str(param_grid_gradient_boosting)},
+    ])
 
-  param_grid_rand_forest = {
-      'n_estimators': [50, 100, 200],
-      'max_depth': [None, 10, 20],
-      'min_samples_split': [2, 5],
-      'min_samples_leaf': [1, 2]
-  }
+    return (
+        param_grid_log_reg,
+        param_grid_dec_tree,
+        param_grid_rand_forest,
+        param_grid_svm,
+        param_grid_knn,
+        param_grid_gradient_boosting,
+        resumen,
+    )
 
-  param_grid_svm = {
-      'C': [0.1, 1, 10],
-      'kernel': ['linear', 'rbf']
-  }
 
-  param_grid_knn = {
-      'n_neighbors': [3, 5, 7, 9],
-      'weights': ['uniform', 'distance']
-  }
-
-  param_grid_gradient_boosting = {
-      'n_estimators': [50, 100, 200],
-      'learning_rate': [0.01, 0.1, 0.2],
-      'max_depth': [3, 5, 7]
-  }
-
-  # Crear tabla resumen de hiperparámetros
-  param_table = pd.DataFrame([
-      {"Modelo": "Logistic Regression", "Hiperparámetros": str(param_grid_log_reg)},
-      {"Modelo": "Decision Tree", "Hiperparámetros": str(param_grid_dec_tree)},
-      {"Modelo": "Random Forest", "Hiperparámetros": str(param_grid_rand_forest)},
-      {"Modelo": "SVM", "Hiperparámetros": str(param_grid_svm)},
-      {"Modelo": "KNN", "Hiperparámetros": str(param_grid_knn)},
-      {"Modelo": "Gradient Boosting", "Hiperparámetros": str(param_grid_gradient_boosting)},
-  ])
-
-  return param_grid_log_reg, param_grid_dec_tree, param_grid_rand_forest, param_grid_svm, param_grid_knn, param_grid_gradient_boosting, param_table
-
+# ============================================================
+# 6. GridSearch
+# ============================================================
 def aplicar_gridSearch(estimator, params):
-  gsModel = GridSearchCV(estimator, params, cv=5)
-
-def fit_gridSearch(X_train, y_train, estimator):
-  estimator.fit(X_train, y_train)
-
-def store_estimators(estimator):
-  return estimator.best_estimator_
+    return GridSearchCV(estimator, params, cv=3)
 
 
+def fit_gridSearch(X_train, y_train, grid_search):
+    grid_search.fit(X_train, y_train)
+    return grid_search
+
+
+def store_estimators(grid_search):
+    return grid_search.best_estimator_
+
+
+# ============================================================
+# 7. Pipeline de evaluación (opcional)
+# ============================================================
 def evaluar_modelos():
-  logger.info("Inicia evaluación del modelo")
-  X, y = obtener_X_y()
-  X_train, X_test, y_train, y_test, X_validation, y_validation = particion_dataSet(X, y)
-  log_reg, dec_tree, rand_forest, svm_model, knn_model, gradient_boosting = train_model(X_train, y_train)
-  param_grid_log_reg, param_grid_dec_tree, param_grid_rand_forest, param_grid_svm, param_grid_knn, param_grid_gradient_boosting, param_table = ajuste_hiperparametros()
+    logger.info("Inicia evaluación")
 
-  logger.debug(param_table)
+    X, y = obtener_X_y()
+    if X is None or y is None:
+        return None
 
-  grid_search_log_reg = aplicar_gridSearch(log_reg, param_grid_log_reg)
-  grid_search_dec_tree = aplicar_gridSearch(dec_tree, param_grid_dec_tree)
-  grid_search_rand_forest = aplicar_gridSearch(rand_forest, param_grid_rand_forest)
-  grid_search_svm = aplicar_gridSearch(svm_model, param_grid_svm)
-  grid_search_knn = aplicar_gridSearch(knn_model, param_grid_knn)
-  grid_search_gradient_boosting = aplicar_gridSearch(gradient_boosting, param_grid_gradient_boosting)
+    X_train, X_test, y_train, y_test, X_val, y_val = particion_dataSet(X, y)
 
-  fit_gridSearch(X_train, y_train, grid_search_log_reg)
-  fit_gridSearch(X_train, y_train, grid_search_dec_tree)
-  fit_gridSearch(X_train, y_train, grid_search_rand_forest)
-  fit_gridSearch(X_train, y_train, grid_search_svm)
-  fit_gridSearch(X_train, y_train, grid_search_knn)
-  fit_gridSearch(X_train, y_train, grid_search_gradient_boosting)
+    modelos = train_model(X_train, y_train)
 
+    (
+        p1, p2, p3, p4, p5, p6, tabla
+    ) = ajuste_hiperparametros()
 
-  best_log_reg = store_estimators(grid_search_log_reg)
-  best_dec_tree = store_estimators(grid_search_dec_tree)
-  best_rand_forest = store_estimators(grid_search_rand_forest)
-  best_svm = store_estimators(grid_search_svm)
-  best_knn = store_estimators(grid_search_knn)
-  best_gradient_boosting = store_estimators(grid_search_gradient_boosting)
+    param_grids = [p1, p2, p3, p4, p5, p6]
 
-  models = {
-      "Logistic Regression": best_log_reg,
-      "Decision Tree": best_dec_tree,
-      "Random Forest": best_rand_forest,
-      "SVM": best_svm,
-      "KNN": best_knn,
-      "Gradient Boosting": best_gradient_boosting
-  }
+    gridsearches = [
+        aplicar_gridSearch(modelos[i], param_grids[i])
+        for i in range(len(modelos))
+    ]
 
-  for model_name, model in models.items():
-      # Evaluate on validation set
-      y_validation_pred = model.predict(X_validation)
-      accuracy_validation = accuracy_score(y_validation, y_validation_pred)
-      # print(f"{model_name} Accuracy (Validation Set): {accuracy_validation:.4f}")
+    entrenados = [fit_gridSearch(X_train, y_train, gs) for gs in gridsearches]
 
-      # Evaluate on test set
-      y_test_pred = model.predict(X_test)
-      accuracy_test = accuracy_score(y_test, y_test_pred)
-      # print(f"{model_name} Accuracy (Test Set): {accuracy_test:.4f}")
+    best_estimators = [store_estimators(gs) for gs in entrenados]
 
-
-  # Create a dictionary to store the results
-  results_data = {
-      "Model": ["Logistic Regression", "Decision Tree", "Random Forest", "SVM", "KNN", "Gradient Boosting"],
-      "Validation Accuracy": [0.6333, 0.6000, 0.6667, 0.6667, 0.5667, 0.5667],
-      "Test Accuracy": [0.8065, 0.6774, 0.8387, 0.8065, 0.6452, 0.6452]
-  }
-
-  # Create the DataFrame
-  evaluation_results_df = pd.DataFrame(results_data)
-
-  # Display the DataFrame
-  logger.debug(evaluation_results_df)
-
-  logger.info("Finaliza evaluación del modelo")
+    return best_estimators
