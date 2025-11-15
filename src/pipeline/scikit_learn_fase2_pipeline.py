@@ -49,7 +49,7 @@ preprocessor = ColumnTransformer([
 # definir nombre de experimento
 mlflow.set_experiment("Basic_RandomForest_Classifier_Experiment")
 for i, params in enumerate(PARAMS_RUNS):
-    with mlflow.start_run(run_name=f"run_{i+1}"):
+    with mlflow.start_run(run_name=f"run_{i+1}") as run:
         # Log de parámetros
         mlflow.log_param("n_estimators", params["n_estimators"])
         mlflow.log_param("max_depth", params["max_depth"])
@@ -89,3 +89,12 @@ for i, params in enumerate(PARAMS_RUNS):
         
         # Guardar el modelo
         mlflow.sklearn.log_model(model_pipeline, "scikit_learn_fase2_1")
+
+        run_id = run.info.run_id
+
+        # registra el modelo
+        model_uri = f"runs:/{run_id}/scikit_learn_fase2_1"
+        registered_model = mlflow.register_model(
+            model_uri=model_uri,
+            name="fase2_model"
+        )

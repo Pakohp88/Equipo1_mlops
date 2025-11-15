@@ -5,6 +5,8 @@ paths:
     original_data: data/raw/turkis_music_emotion_original.csv
     clean_data: data/processed/clean/clean_dataset.csv
     processed_data: data/processed
+    load_model: "models:/fase2_model/1"
+    working_model: src/models/model_v1_0.pkl
 dvc:
     clean_data: data/processed/clean/clean_dataset.csv.dvc
 experimentos:
