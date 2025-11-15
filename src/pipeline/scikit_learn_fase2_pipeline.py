@@ -17,6 +17,7 @@ from sklearn.compose import ColumnTransformer
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
 # Cargar configuración desde config.yaml
 CONFIG_PATH = Path("config.yaml")
 with open(CONFIG_PATH, 'r') as file:
@@ -97,4 +98,3 @@ for i, params in enumerate(PARAMS_RUNS):
             model_uri=model_uri,
             name="fase2_model"
         )
-
