@@ -18,4 +18,4 @@ ENV PORT=8000
 EXPOSE 8000
 
 # Comando para ejecutar la API con Uvicorn
-CMD ["uvicorn", "src.api.app_equipo2:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.api.app_equipo1:appEq1", "--host", "0.0.0.0", "--port", "8000"]
