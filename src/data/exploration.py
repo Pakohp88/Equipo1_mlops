@@ -1,69 +1,79 @@
 import logging
 import visualization
 import io
+import pandas as pd 
 
 logger = logging.getLogger(__name__)
+
+
+def unique_class(df: pd.DataFrame):
+    """
+    Retorna los valores únicos de la columna 'class' si existe.
+    """
+    if "class" not in df.columns:
+        return []
+    return df["class"].dropna().unique().tolist()
 
 
 def visualizacion_inicial(df, df_org):
     logger.info("Inicia la impresión de la visualización inicial")
 
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("VISUALIZACIÓN DE DATOS INICIAL")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
 
     # Mostrar forma y columnas
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("DIMENSIONES Y COLUMNAS DEL DATASET")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
     logger.debug(f"Shape: {df.shape}")
     logger.debug(f"Columnas: {list(df.columns)}")
 
     # Información general
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("INFORMACIÓN GENERAL DEL DATASET")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
     buffer = io.StringIO()
     df.info(buf=buffer)
     logger.debug(buffer.getvalue())
 
     # Primeras filas
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("VISTA PREVIA")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
     logger.debug(f"\n{df.head()}")
 
     # Conteo de valores faltantes
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("VALORES FALTANTES POR COLUMNA")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
     logger.debug(f"\n{df.isnull().sum()}")
 
     # Comparación datasets
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("COMPARACIÓN DATASETS (MODIFICADO Y ORIGINAL)")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
     logger.debug(f"Modificado: {df.shape} | Original: {df_org.shape}")
 
     # Diferencias entre dataset
     extra_cols = df.columns.difference(df_org.columns)
     missing_cols = df_org.columns.difference(df.columns)
 
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("COLUMNAS EXTRAS Y/O FALTANTES")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
     logger.debug(f"Extras en modificado: {list(extra_cols)} | Faltantes en modificado: {list(missing_cols)}")
 
     # Valores en Class
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("VALORES EN CLASS")
-    logger.debug("/"*50)
-    logger.debug(f"{visualization.unique_class(df)}")
+    logger.debug("/" * 50)
+    logger.debug(f"{unique_class(df)}")   # <-- YA NO FALLA
 
     # Tipos de datos
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("COLUMNAS TIPO OBJECT")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
     obj_cols = df.select_dtypes(include="object").columns
     logger.debug(f"Total columnas tipo object: {len(obj_cols)} | Columnas: {obj_cols.tolist()}")
     logger.debug("Tenemos 36 columnas tipo object que deberían ser float64 - La columna Class debe permanecer como object")
@@ -71,9 +81,9 @@ def visualizacion_inicial(df, df_org):
     # --------------------------
     # Analisis de valores null
     # --------------------------
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("ANÁLISIS DE VALORES NULL")
-    logger.debug("/"*50)
+    logger.debug("/" * 50)
     total_celdas = visualization.size_df(df)
     total_nulls = visualization.cantidad_nulls(df)
 
@@ -98,13 +108,12 @@ def visualizacion_inicial(df, df_org):
 def EDA(df):
     logger.info("Inicia la impresión de los datos EDA")
 
-    logger.debug("\n" + "/"*50)
+    logger.debug("\n" + "/" * 50)
     logger.debug("ANÁLISIS EXPLORATORIO DE DATOS")
-    logger.debug("/"*50 + "\n")
+    logger.debug("/" * 50 + "\n")
 
     cols_id = visualization.detectar_columnas_id(df)
 
-    # Esta línea fallaba si el mock no devolvía tupla
     numeric_cols, cols_cat = visualization.variables_num_cat(df)
 
     # 1. Resumen general por columnas
@@ -146,3 +155,41 @@ def EDA(df):
     logger.info("Termina la impresión de los datos EDA")
 
     return cols_id
+
+
+def obtener_columnas_numericas(df: pd.DataFrame):
+    numericas = df.select_dtypes(include=["number"]).columns.tolist()
+    logger.debug(f"Columnas numéricas detectadas: {numericas}")
+    return numericas
+
+
+def obtener_columnas_categoricas(df: pd.DataFrame):
+    categoricas = df.select_dtypes(include=["object", "category"]).columns.tolist()
+    logger.debug(f"Columnas categóricas detectadas: {categoricas}")
+    return categoricas
+
+
+def resumen_estadistico(df: pd.DataFrame):
+    resumen = df.describe(include="all")
+    logger.debug("Resumen estadístico generado.")
+    return resumen
+
+# ============================================================
+# Funciones utilitarias que los tests esperan encontrar
+# ============================================================
+
+def size_df(df):
+    """Devuelve el número total de celdas del dataframe."""
+    return df.shape[0] * df.shape[1]
+
+
+def count_null(df):
+    """Devuelve el total de valores nulos en el dataframe."""
+    return int(df.isnull().sum().sum())
+
+
+def percent_null(df):
+    """Devuelve el porcentaje total de valores nulos respecto al total de celdas."""
+    total = size_df(df)
+    nulls = count_null(df)
+    return round((nulls / total) * 100, 2) if total > 0 else 0.0
